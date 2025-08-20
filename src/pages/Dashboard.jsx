@@ -6,24 +6,33 @@ import BottomNavigation from '../components/BottomNavigation';
 import { Settings } from 'lucide-react';
 import { commentsService, apiHelpers } from '../api';
 
-// Efecto para obtener los comentarios al montar el componente (AJAX)
-useEffect(() => {
-  const fetchComments = async () => {
-    try {
-      setLoadingComments(true);
-      setErrorComments(null);
-      const data = await commentsService.getComments({ limit: 3 });
-      setCommentsPreview(data);
-    } catch (error) {
-      const errorDetails = apiHelpers.handleError(error);
-      setErrorComments(errorDetails.message);
-    } finally {
-      setLoadingComments(false);
-    }
-  };
+const Dashboard = () => {
+  const navigate = useNavigate();
+  const { user } = useUser();
+  
+  // Estados para los comentarios
+  const [commentsPreview, setCommentsPreview] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [errorComments, setErrorComments] = useState(null);
 
-  fetchComments();
-}, []);
+  // Efecto para obtener los comentarios al montar el componente (AJAX)
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        setLoadingComments(true);
+        setErrorComments(null);
+        const data = await commentsService.getComments({ limit: 3 });
+        setCommentsPreview(data);
+      } catch (error) {
+        const errorDetails = apiHelpers.handleError(error);
+        setErrorComments(errorDetails.message);
+      } finally {
+        setLoadingComments(false);
+      }
+    };
+
+    fetchComments();
+  }, []);
 
   // Íconos SVG para las tarjetas
   const HistoryIcon = () => (
@@ -430,5 +439,6 @@ useEffect(() => {
       `}</style>
     </div>
   );
+};
 
 export default Dashboard;
