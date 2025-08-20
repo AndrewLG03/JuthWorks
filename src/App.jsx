@@ -17,7 +17,7 @@ import NewRequestsPage from './pages/NewRequestsPage';
 import PendingQuotesPage from './pages/PendingQuotesPage';
 import BottomNavigation from './components/BottomNavigation';
 import Payment from './pages/Payment';
-import Onboarding from './pages/Onboarding'; // <-- 1. AÑADIR ESTA LÍNEA
+import Onboarding from './pages/Onboarding'; 
 import Support from './pages/Support';
 
 // Componente temporal para rutas que aún no existen 
