@@ -1,0 +1,25 @@
+/* frontend/src/index.css */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+}
+
+/* Estilos para móviles */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px; /* Previene zoom en iOS */
+  }
+}
+
+/* Clase para tarjetas */
+.card {
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 28rem;
+}
