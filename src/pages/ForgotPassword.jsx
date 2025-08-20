@@ -38,7 +38,7 @@ const ForgotPassword = () => {
       setLoading(false);
     }
   };
-
+ 
   // Estilos
   const styles = {
     container: {
