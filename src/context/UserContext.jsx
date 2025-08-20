@@ -1,5 +1,6 @@
 // frontend/src/context/UserContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import api, { API_BASE, apiHelpers } from '../api';
 
 const UserContext = createContext();
 
@@ -8,8 +9,6 @@ export const useUser = () => {
   if (!context) throw new Error('useUser debe ser usado dentro de UserProvider');
   return context;
 };
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -55,27 +54,58 @@ export const UserProvider = ({ children }) => {
     return t.replace(/^['"]|['"]$/g, '').trim();
   };
 
+  // fetchWithAuth actualizado para usar axios pero mantener la misma interfaz
   const fetchWithAuth = async (url, opts = {}) => {
-    const final = { ...opts };
-    final.headers = final.headers ? { ...final.headers } : {};
+    try {
+      // Convertir rutas relativas /api => API_BASE + /api
+      const finalUrl = (typeof url === 'string' && url.startsWith('/api')) ? url : url;
+      
+      // Preparar configuración para axios
+      const axiosConfig = {
+        method: opts.method || 'GET',
+        url: finalUrl,
+        data: opts.body,
+        headers: opts.headers || {},
+        ...opts // Para cualquier otra opción que se pase
+      };
 
-    // Convertir rutas relativas /api => API_BASE + /api
-    const finalUrl = (typeof url === 'string' && url.startsWith('/api')) ? `${API_BASE}${url}` : url;
+      // Si hay body y es string (JSON), parsearlo
+      if (typeof axiosConfig.data === 'string') {
+        try {
+          axiosConfig.data = JSON.parse(axiosConfig.data);
+        } catch (e) {
+          // Si no se puede parsear, dejarlo como string
+        }
+      }
 
-    // Obtener token (state o localStorage) y sanearlo
-    const rawToken = token || localStorage.getItem('token') || '';
-    const cleanToken = sanitizeToken(rawToken);
-
-    if (cleanToken) final.headers = { ...final.headers, Authorization: `Bearer ${cleanToken}` };
-
-    // Si hay body y no Content-Type y no es FormData, poner application/json
-    if (final.body && !(final.body instanceof FormData)) {
-      if (!Object.keys(final.headers).some(h => h.toLowerCase() === 'content-type')) {
-        final.headers['Content-Type'] = 'application/json';
+      // Usar la instancia de axios que ya tiene los interceptores configurados
+      const response = await api(axiosConfig);
+      
+      // Crear un objeto similar a fetch Response para mantener compatibilidad
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        statusText: response.statusText,
+        json: () => Promise.resolve(response.data),
+        data: response.data,
+        headers: response.headers
+      };
+    } catch (error) {
+      // Manejar errores de axios y convertirlos a formato fetch-like
+      if (error.response) {
+        return {
+          ok: false,
+          status: error.response.status,
+          statusText: error.response.statusText,
+          json: () => Promise.resolve(error.response.data),
+          data: error.response.data,
+          headers: error.response.headers
+        };
+      } else {
+        // Error de red o configuración
+        throw error;
       }
     }
-
-    return fetch(finalUrl, final);
   };
 
   return (
@@ -84,10 +114,17 @@ export const UserProvider = ({ children }) => {
       token,
       login,
       logout,
-      updateUser: (u) => { const nu = { ...user, ...u }; setUser(nu); localStorage.setItem('user', JSON.stringify(nu)); },
+      updateUser: (u) => { 
+        const nu = { ...user, ...u }; 
+        setUser(nu); 
+        localStorage.setItem('user', JSON.stringify(nu)); 
+      },
       loading,
       isAuthenticated: !!user,
-      fetchWithAuth
+      fetchWithAuth,
+      // Nuevas utilidades para usar con api.js
+      apiHelpers,
+      API_BASE
     }}>
       {children}
     </UserContext.Provider>

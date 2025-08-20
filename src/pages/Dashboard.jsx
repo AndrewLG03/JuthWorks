@@ -4,37 +4,26 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import BottomNavigation from '../components/BottomNavigation';
 import { Settings } from 'lucide-react';
+import { commentsService, apiHelpers } from '../api';
 
-const Dashboard = () => {
-  const navigate = useNavigate();
-  const { user } = useUser();
+// Efecto para obtener los comentarios al montar el componente (AJAX)
+useEffect(() => {
+  const fetchComments = async () => {
+    try {
+      setLoadingComments(true);
+      setErrorComments(null);
+      const data = await commentsService.getComments({ limit: 3 });
+      setCommentsPreview(data);
+    } catch (error) {
+      const errorDetails = apiHelpers.handleError(error);
+      setErrorComments(errorDetails.message);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
 
-  // Estado para la vista previa de comentarios
-  const [commentsPreview, setCommentsPreview] = useState([]);
-  const [loadingComments, setLoadingComments] = useState(true);
-  const [errorComments, setErrorComments] = useState(null);
-
-  // Efecto para obtener los comentarios al montar el componente (AJAX)
-  useEffect(() => {
-    const fetchComments = async () => {
-      try {
-        setLoadingComments(true);
-        setErrorComments(null);
-
-        const res = await fetch('http://localhost:5000/api/comments?limit=3');
-        if (!res.ok) throw new Error('Error al cargar comentarios');
-        
-        const data = await res.json();
-        setCommentsPreview(data);
-      } catch (err) {
-        setErrorComments(err.message);
-      } finally {
-        setLoadingComments(false);
-      }
-    };
-
-    fetchComments();
-  }, []);
+  fetchComments();
+}, []);
 
   // Íconos SVG para las tarjetas
   const HistoryIcon = () => (
@@ -441,6 +430,5 @@ const Dashboard = () => {
       `}</style>
     </div>
   );
-};
 
 export default Dashboard;

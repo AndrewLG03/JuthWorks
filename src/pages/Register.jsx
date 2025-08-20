@@ -1,106 +1,41 @@
 // frontend/src/pages/Register.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authService, apiHelpers } from '../api';
 
-// Validar fuerza de contraseña acorde al backend
-const validatePassword = password => {
-  const minLength = 8;
-  const errors = [];
-  if (password.length < minLength) errors.push(`Debe tener al menos ${minLength} caracteres`);
-  if (!/[A-Z]/.test(password)) errors.push('Debe contener al menos una letra mayúscula');
-  if (!/[a-z]/.test(password)) errors.push('Debe contener al menos una letra minúscula');
-  if (!/\d/.test(password)) errors.push('Debe contener al menos un número');
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push('Debe contener al menos un carácter especial');
-  return errors;
-};
-
-const Register = () => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    cedula: '',
-    primer_nombre: '',
-    segundo_nombre: '',
-    primer_apellido: '',
-    segundo_apellido: '',
-    email: '',
-    usuario: '',
-    contrasena: '',
-    tipo_usuario: 'Personal'
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [passwordErrors, setPasswordErrors] = useState([]);
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleChange = e => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    setError('');
-    setPasswordErrors([]);
-  };
-
-  const validateForm = () => {
-    const required = ['cedula', 'primer_nombre', 'primer_apellido', 'email', 'usuario', 'contrasena'];
-    for (let field of required) {
-      if (!formData[field]) {
-        setError('Todos los campos marcados con * son obligatorios');
-        return false;
-      }
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Correo electrónico inválido');
-      return false;
-    }
-    const pwdErrors = validatePassword(formData.contrasena);
-    if (pwdErrors.length) {
-      setPasswordErrors(pwdErrors);
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async e => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setLoading(true);
-    setError('');
-    setPasswordErrors([]);
-    try {
-      const res = await fetch('http://localhost:5000/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
-      console.log('Register response:', data);
-
-      if (res.ok) {
-        if (data.needsVerification) {
-          if (data.userId) {
-            // **CAMBIO CLAVE**: Redirigir a la página de verificación dedicada.
-            // Pasamos el userId como un parámetro en la URL.
-            navigate(`/verify-email?userId=${data.userId}`);
-          } else {
-            setError('ID de usuario no recibido del servidor para verificación');
-            console.error('Missing userId in response', data);
-          }
-        } else {
-          // Si no necesita verificación, va directo al login.
-          navigate('/login');
-        }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
+  
+  setLoading(true);
+  setError('');
+  setPasswordErrors([]);
+  
+  try {
+    const data = await authService.register(formData);
+    console.log('Register response:', data);
+    
+    if (data.needsVerification) {
+      if (data.userId) {
+        navigate(`/verify-email?userId=${data.userId}`);
       } else {
-        console.warn('Register failed:', data);
-        if (data.passwordErrors) setPasswordErrors(data.passwordErrors);
-        setError(data.error || `Error ${res.status}: ${res.statusText}`);
+        setError('ID de usuario no recibido del servidor para verificación');
+        console.error('Missing userId in response', data);
       }
-    } catch (err) {
-      console.error('Register fetch error:', err);
-      setError('No se pudo conectar al servidor');
-    } finally {
-      setLoading(false);
+    } else {
+      navigate('/login');
     }
-  };
+  } catch (error) {
+    console.error('Register fetch error:', error);
+    const errorDetails = apiHelpers.handleError(error);
+    
+    if (errorDetails.data?.passwordErrors) {
+      setPasswordErrors(errorDetails.data.passwordErrors);
+    }
+    setError(errorDetails.data?.error || errorDetails.message || 'No se pudo conectar al servidor');
+  } finally {
+    setLoading(false);
+  }
 
   // Íconos SVG (sin cambios)
   const EyeIcon = () => (

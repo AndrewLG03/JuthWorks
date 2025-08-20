@@ -2,116 +2,61 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Send, XCircle } from 'lucide-react';
+import { commentsService, apiHelpers } from '../api';
 
-const Comments = () => {
-  const { user } = useUser();
-  const navigate = useNavigate();
+// Cargar comentarios aplicando filtros
+const fetchComments = useCallback(async () => {
+  setLoading(true);
+  try {
+    const data = await commentsService.getComments(filters);
+    setComments(data);
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    setError(errorDetails.data?.error || 'No se pudieron cargar los comentarios');
+  } finally {
+    setLoading(false);
+  }
+}, [filters]);
 
-  const [comments, setComments] = useState([]);
-  const [texto, setTexto] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Estados para la edición
-  const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editingText, setEditingText] = useState('');
-
-  // Estados para los filtros
-  const [filters, setFilters] = useState({ searchTerm: '', startDate: '', endDate: '' });
-
-  // Cargar comentarios aplicando filtros
-  const fetchComments = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-
-      const res = await fetch(`http://localhost:5000/api/comments?${params.toString()}`);
-      if (!res.ok) throw new Error('Error en la respuesta del servidor');
-      const data = await res.json();
-      setComments(data);
-    } catch {
-      setError('No se pudieron cargar los comentarios');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]); // Se vuelve a crear si los filtros cambian
-
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
-
-  // Handlers para filtros
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-  };
-
-  const resetFilters = () => {
-    setFilters({ searchTerm: '', startDate: '', endDate: '' });
-  };
-
-  // Handler para crear comentario
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!texto.trim()) return;
-    try {
-      const res = await fetch('http://localhost:5000/api/comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto, usuario_id: user?.id || null })
-      });
-      if (!res.ok) throw new Error();
-      const newComment = await res.json();
-      setComments([newComment, ...comments]);
-      setTexto('');
-    } catch {
-      alert('Error al enviar comentario');
-    }
-  };
-
-  // Handlers para editar
-  const handleStartEdit = (comment) => {
-    setEditingCommentId(comment.id);
-    setEditingText(comment.texto);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingCommentId(null);
-    setEditingText('');
-  };
-
-  const handleSaveEdit = async (commentId) => {
-    if (!editingText.trim()) return;
-    try {
-      const res = await fetch(`http://localhost:5000/api/comments/${commentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto: editingText })
-      });
-      if (!res.ok) throw new Error();
-      const updatedComment = await res.json();
-      setComments(comments.map(c => (c.id === commentId ? updatedComment : c)));
-      handleCancelEdit();
-    } catch {
-      alert('Error al actualizar el comentario');
-    }
-  };
+// Handler para crear comentario
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!texto.trim()) return;
   
-  // Handler para eliminar
-  const handleDelete = async (commentId) => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este comentario?')) return;
-    try {
-      const res = await fetch(`http://localhost:5000/api/comments/${commentId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
-      setComments(comments.filter(c => c.id !== commentId));
-    } catch {
-      alert('Error al eliminar el comentario');
-    }
-  };
+  try {
+    const newComment = await commentsService.createComment(texto, user?.id || null);
+    setComments([newComment, ...comments]);
+    setTexto('');
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    alert(errorDetails.data?.error || 'Error al enviar comentario');
+  }
+};
+
+const handleSaveEdit = async (commentId) => {
+  if (!editingText.trim()) return;
+  
+  try {
+    const updatedComment = await commentsService.updateComment(commentId, editingText);
+    setComments(comments.map(c => (c.id === commentId ? updatedComment : c)));
+    handleCancelEdit();
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    alert(errorDetails.data?.error || 'Error al actualizar el comentario');
+  }
+};
+
+// Handler para eliminar
+const handleDelete = async (commentId) => {
+  if (!window.confirm('¿Estás seguro de que quieres eliminar este comentario?')) return;
+  
+  try {
+    await commentsService.deleteComment(commentId);
+    setComments(comments.filter(c => c.id !== commentId));
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    alert(errorDetails.data?.error || 'Error al eliminar el comentario');
+  }
 
   // --- Estilos ---
   const styles = {

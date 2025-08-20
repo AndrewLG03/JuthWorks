@@ -1,85 +1,57 @@
 // frontend/src/pages/AdminRequests.jsx
 import React, { useEffect, useState } from 'react';
-import { useUser } from '../context/UserContext';  // tu hook para obtener el token
+import { useUser } from '../context/UserContext';
 import { toast } from 'react-toastify';
+import { adminService, apiHelpers } from '../api';
 
-export default function AdminRequests() {
-  const { token } = useUser();
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
+const fetchNewRequests = async () => {
+  setLoading(true);
+  try {
+    const data = await adminService.getNewRequests();
+    setRequests(data);
+  } catch (error) {
+    console.error(error);
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'No se pudieron cargar las solicitudes');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const fetchNewRequests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/admin/solicitudes-nuevas', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setRequests(data);
-    } catch (err) {
-      console.error(err);
-      toast.error('No se pudieron cargar las solicitudes');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
+const handleSendQuote = async (id) => {
+  const precio = prompt('Ingresa precio estimado:');
+  if (!precio) return;
+  
+  try {
+    await adminService.sendQuote(id, parseFloat(precio), '');
+    toast.success('Presupuesto enviado');
     fetchNewRequests();
-  }, []);
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'Error enviando presupuesto');
+  }
+};
 
-  const handleSendQuote = async (id) => {
-    const precio = prompt('Ingresa precio estimado:');
-    if (!precio) return;
-    try {
-      await fetch('http://localhost:5000/api/admin/enviar-presupuesto', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ solicitud_id: id, precio_estimado: parseFloat(precio), notas_admin: '' })
-      });
-      toast.success('Presupuesto enviado');
-      fetchNewRequests();
-    } catch {
-      toast.error('Error enviando presupuesto');
-    }
-  };
+const handleApprove = async (id) => {
+  try {
+    await adminService.approveRequest(id, '');
+    toast.success('Solicitud aprobada');
+    fetchNewRequests();
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'Error aprobando solicitud');
+  }
+};
 
-  const handleApprove = async (id) => {
-    try {
-      await fetch(`http://localhost:5000/api/admin/aprobar-presupuesto/${id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ notas_admin: '' })
-      });
-      toast.success('Solicitud aprobada');
-      fetchNewRequests();
-    } catch {
-      toast.error('Error aprobando solicitud');
-    }
-  };
-
-  const handleReject = async (id) => {
-    try {
-      await fetch(`http://localhost:5000/api/admin/rechazar-presupuesto/${id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ notas_admin: '' })
-      });
-      toast.info('Solicitud rechazada');
-      fetchNewRequests();
-    } catch {
-      toast.error('Error rechazando solicitud');
-    }
-  };
+const handleReject = async (id) => {
+  try {
+    await adminService.rejectRequest(id, '');
+    toast.info('Solicitud rechazada');
+    fetchNewRequests();
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'Error rechazando solicitud');
+  }
 
   if (loading) return <p className="p-4">Cargando solicitudes...</p>;
   if (requests.length === 0) return <p className="p-4">No hay solicitudes nuevas.</p>;

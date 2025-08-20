@@ -5,99 +5,65 @@ import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Calendar, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { adminService, apiHelpers } from '../api';
 
-export default function NewRequestsPage() {
-  const { token, user } = useUser();
-  const navigate = useNavigate();
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+const fetchNew = async () => {
+  setLoading(true);
+  try {
+    const data = await adminService.getNewRequests();
+    setRequests(data);
+  } catch (error) {
+    console.error(error);
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'No se pudieron cargar las solicitudes');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // Verificar si el usuario es administrador y cargar solicitudes
-  useEffect(() => {
-    if (!user || user.tipo_usuario !== 'administrador') {
-      navigate('/dashboard');
-    } else {
-      fetchNew();
+const handleSendQuote = async (id) => {
+  const precio = prompt('Ingresa el precio estimado para el presupuesto (solo números):');
+  if (!precio || isNaN(parseFloat(precio))) {
+    if (precio !== null) {
+      toast.warn('Por favor, ingresa un precio válido.');
     }
-  }, [user, navigate]);
+    return;
+  }
+  
+  try {
+    await adminService.sendQuote(id, parseFloat(precio), '');
+    toast.success('Presupuesto enviado exitosamente');
+    fetchNew();
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'Error al enviar el presupuesto');
+  }
+};
 
-  const fetchNew = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/admin/solicitudes-nuevas', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setRequests(data);
-    } catch (err) {
-      console.error(err);
-      toast.error('No se pudieron cargar las solicitudes');
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleApprove = async (id) => {
+  if (!window.confirm('¿Estás seguro de que deseas aprobar esta solicitud directamente?')) return;
+  
+  try {
+    await adminService.approveRequest(id, 'Aprobado directamente por el administrador.');
+    toast.success('Solicitud aprobada');
+    fetchNew();
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'Error al aprobar la solicitud');
+  }
+};
 
-  // --- Funciones para manejar acciones del admin ---
-
-  const handleSendQuote = async (id) => {
-    const precio = prompt('Ingresa el precio estimado para el presupuesto (solo números):');
-    if (!precio || isNaN(parseFloat(precio))) {
-        if (precio !== null) { // Evita el toast si el usuario cancela el prompt
-            toast.warn('Por favor, ingresa un precio válido.');
-        }
-        return;
-    }
-    try {
-      await fetch('http://localhost:5000/api/admin/enviar-presupuesto', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ solicitud_id: id, precio_estimado: parseFloat(precio), notas_admin: '' })
-      });
-      toast.success('Presupuesto enviado exitosamente');
-      fetchNew(); // Recargar la lista de solicitudes
-    } catch {
-      toast.error('Error al enviar el presupuesto');
-    }
-  };
-
-  const handleApprove = async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas aprobar esta solicitud directamente?')) return;
-    try {
-      await fetch(`http://localhost:5000/api/admin/aprobar-presupuesto/${id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ notas_admin: 'Aprobado directamente por el administrador.' })
-      });
-      toast.success('Solicitud aprobada');
-      fetchNew();
-    } catch {
-      toast.error('Error al aprobar la solicitud');
-    }
-  };
-
-  const handleReject = async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas rechazar esta solicitud? Esta acción no se puede deshacer.')) return;
-    try {
-      await fetch(`http://localhost:5000/api/admin/rechazar-presupuesto/${id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ notas_admin: 'Rechazado por el administrador.' })
-      });
-      toast.info('Solicitud rechazada');
-      fetchNew();
-    } catch {
-      toast.error('Error al rechazar la solicitud');
-    }
-  };
+const handleReject = async (id) => {
+  if (!window.confirm('¿Estás seguro de que deseas rechazar esta solicitud? Esta acción no se puede deshacer.')) return;
+  
+  try {
+    await adminService.rejectRequest(id, 'Rechazado por el administrador.');
+    toast.info('Solicitud rechazada');
+    fetchNew();
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'Error al rechazar la solicitud');
+  }
 
   // --- Estilos del Componente ---
   const styles = {

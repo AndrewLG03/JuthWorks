@@ -4,32 +4,20 @@ import { useUser } from '../context/UserContext';
 import BottomNavigation from '../components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Calendar, FileText, AlertCircle, DollarSign } from 'lucide-react';
+import { adminService, apiHelpers } from '../api';
 
-export default function PendingQuotesPage() {
-  const { token, user } = useUser();
-  const navigate = useNavigate();
-  const [quotes, setQuotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user || user.tipo_usuario !== 'administrador') return navigate('/dashboard');
-    fetchPending();
-  }, [user, navigate]);
-
-  const fetchPending = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/admin/presupuestos-pendientes', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setQuotes(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchPending = async () => {
+  setLoading(true);
+  try {
+    const data = await adminService.getPendingQuotes();
+    setQuotes(data);
+  } catch (error) {
+    console.error(error);
+    const errorDetails = apiHelpers.handleError(error);
+    // Manejar error apropiadamente
+  } finally {
+    setLoading(false);
+  }
 
   // --- Estilos ---
   const styles = {

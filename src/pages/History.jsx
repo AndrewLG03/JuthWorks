@@ -4,46 +4,39 @@ import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import BottomNavigation from '../components/BottomNavigation';
 import { FileText, Calendar, AlertCircle, DollarSign } from 'lucide-react';
+import { userService, apiHelpers } from '../api';
 
-const History = () => {
-  const { user } = useUser();
-  const navigate = useNavigate();
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+useEffect(() => {
+  if (!user) {
+    setLoading(false);
+    return;
+  }
 
-  useEffect(() => {
-    if (!user) {
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await userService.getUserRequests(user.id);
+      setRequests(data);
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+      const errorDetails = apiHelpers.handleError(error);
+      setError(errorDetails.message);
+    } finally {
       setLoading(false);
-      return;
     }
+  };
 
-    const fetchRequests = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  fetchRequests();
+}, [user]);
 
-        // Lógica de fetch actualizada con header de autorización
-        const response = await fetch(`http://localhost:5000/api/user-requests/${user.id}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
+  if (loading) {
+    return <p className="text-center mt-4">Cargando historial...</p>;
+  }
 
-        if (!response.ok) {
-          throw new Error('Error al cargar el historial');
-        }
-
-        const data = await response.json();
-        setRequests(data);
-      } catch (err) {
-        console.error('Error fetching requests:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRequests();
-  }, [user]);
+  if (error) {
+    return <p className="text-center mt-4 text-red-500">{error}</p>;
+  }
 
   // Nueva función para manejar la navegación al pago
   const handlePay = (solicitudId) => {
@@ -310,6 +303,5 @@ const History = () => {
       <BottomNavigation />
     </div>
   );
-};
 
 export default History;

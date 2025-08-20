@@ -3,117 +3,54 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Moon, Sun, Trash2 } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { userService, apiHelpers } from '../api';
 
-const LOCAL_KEY_ONBOARD = 'hasSeenOnboarding_v1';
-const LOCAL_KEY_DARK = 'app_dark_mode_v1';
-
-const Settings = () => {
-  const navigate = useNavigate();
-  const { user, logout, fetchWithAuth, token } = useUser();
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      return localStorage.getItem(LOCAL_KEY_DARK) === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [loadingReset, setLoadingReset] = useState(false);
-  const [loadingDelete, setLoadingDelete] = useState(false);
-
-  // Aplicar clase en body para estilos globales (útil para Tailwind / CSS)
-  useEffect(() => {
-    if (darkMode) {
-      document.body.classList.add('dark');
-    } else {
-      document.body.classList.remove('dark');
-    }
-    try {
-      localStorage.setItem(LOCAL_KEY_DARK, darkMode ? 'true' : 'false');
-    } catch (e) {
-      console.warn('No se pudo persistir el modo oscuro en localStorage', e);
-    }
-  }, [darkMode]);
-
-  const handleLogout = () => {
+const confirmDeleteAccount = async () => {
+  if (!window.confirm('¿Seguro que quieres eliminar tu cuenta? Esta acción es irreversible.')) return;
+  
+  setLoadingDelete(true);
+  try {
+    await userService.deleteAccount();
+    alert('Cuenta eliminada. Volviendo al inicio.');
     logout();
     navigate('/login');
-  };
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    alert(errorDetails.data?.error || 'No se pudo eliminar la cuenta desde el servidor.');
+  } finally {
+    setLoadingDelete(false);
+    setShowDeleteModal(false);
+  }
+};
 
-  const handleDeleteAccount = () => {
-    setShowDeleteModal(true);
-  };
-
-  // Intentará eliminar la cuenta si existe el endpoint; si no, muestra mensaje
-  const confirmDeleteAccount = async () => {
-    if (!window.confirm('¿Seguro que quieres eliminar tu cuenta? Esta acción es irreversible.')) return;
-    setLoadingDelete(true);
+const resetOnboarding = async () => {
+  if (!confirm('¿Deseas ver el onboarding de nuevo la próxima vez que abras la app?')) return;
+  
+  setLoadingReset(true);
+  try {
+    // borrar local
+    localStorage.removeItem(LOCAL_KEY_ONBOARD);
+    
+    // intentar sincronizar con backend
     try {
-      // Ajusta la URL si tu endpoint es otro
-      const res = await (typeof fetchWithAuth === 'function'
-        ? fetchWithAuth('/api/users/me', { method: 'DELETE' })
-        : fetch('http://localhost:5000/api/users/me', {
-            method: 'DELETE',
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined
-          }));
-
-      if (res.ok) {
-        alert('Cuenta eliminada. Volviendo al inicio.');
-        logout();
-        navigate('/login');
+      await userService.updateOnboarding(false);
+      alert('Onboarding reiniciado y sincronizado con servidor.');
+    } catch (serverError) {
+      const errorDetails = apiHelpers.handleError(serverError);
+      if (errorDetails.status === 401) {
+        alert('Onboarding reiniciado localmente. Tu sesión expiró — inicia sesión de nuevo para sincronizar.');
+      } else if (errorDetails.status === 404) {
+        alert('Onboarding reiniciado localmente. El endpoint de servidor no existe (404).');
       } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || 'No se pudo eliminar la cuenta desde el servidor.');
+        alert('Onboarding reiniciado localmente. No fue posible sincronizar con el servidor.');
       }
-    } catch (err) {
-      console.warn('Error eliminando cuenta:', err);
-      alert('Error conectando al servidor. Intenta más tarde.');
-    } finally {
-      setLoadingDelete(false);
-      setShowDeleteModal(false);
     }
-  };
-
-  // Reset onboarding: borra localStorage y sincroniza con backend si hay token
-    // Reset onboarding: borra localStorage y sincroniza con backend si hay token
-  const resetOnboarding = async () => {
-    if (!confirm('¿Deseas ver el onboarding de nuevo la próxima vez que abras la app?')) return;
-    setLoadingReset(true);
-
-    try {
-      // borrar local
-      localStorage.removeItem(LOCAL_KEY_ONBOARD);
-
-      // intentar sincronizar con backend usando fetchWithAuth (which now resolves API_BASE)
-      if (typeof fetchWithAuth === 'function') {
-        const res = await fetchWithAuth('/api/users/me/onboarding', {
-          method: 'POST',
-          body: JSON.stringify({ onboarded: false })
-        });
-
-        if (res.ok) {
-          alert('Onboarding reiniciado y sincronizado con servidor.');
-        } else if (res.status === 401) {
-          // token inválido / expirado
-          alert('Onboarding reiniciado localmente. Tu sesión expiró o el token no es válido — por favor inicia sesión de nuevo para sincronizar.');
-          // opcional: logout automático
-          // logout();
-        } else if (res.status === 404) {
-          alert('Onboarding reiniciado localmente. El endpoint de servidor no existe (404).');
-        } else {
-          alert('Onboarding reiniciado localmente. No fue posible sincronizar con el servidor (status ' + res.status + ').');
-        }
-      } else {
-        // fallback: ya borramos local, informar
-        alert('Onboarding reiniciado localmente.');
-      }
-    } catch (err) {
-      console.error('Error reiniciando onboarding:', err);
-      alert('Onboarding reiniciado localmente. Ocurrió un error al intentar contactar al servidor.');
-    } finally {
-      setLoadingReset(false);
-    }
-  };
+  } catch (err) {
+    console.error('Error reiniciando onboarding:', err);
+    alert('Onboarding reiniciado localmente. Ocurrió un error al intentar contactar al servidor.');
+  } finally {
+    setLoadingReset(false);
+  }
 
   const styles = {
     container: {

@@ -1,62 +1,31 @@
 // frontend/src/pages/Onboarding.jsx
 import React, { useState } from 'react';
+import { userService, apiHelpers } from '../api';
 
-// Este componente ahora funciona como una "página" que muestra el modal de onboarding.
-// Recibe la prop `onComplete` desde App.jsx para saber a dónde redirigir al usuario al finalizar.
-export default function OnboardingPage({ onComplete }) {
-  const [step, setStep] = useState(0);
-  const totalSteps = 3;
-
-  // Función que se ejecuta al finalizar o saltar el onboarding.
-  const finishOnboarding = async () => {
-    // 1. Actualizar el estado en el servidor.
-    // Obtenemos el token y el usuario desde localStorage, como lo hace tu ProtectedRoute.
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user'));
-
-    if (token && user) {
-      try {
-        await fetch('http://localhost:5000/api/users/me/onboarding', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          // El body puede estar vacío si el backend no espera nada,
-          // o puedes enviar { onboarded: true }
-          body: JSON.stringify({ onboarded: true })
-        });
-      } catch (error) {
-        console.warn('No se pudo guardar el estado de onboarding en el servidor:', error);
-      }
+const finishOnboarding = async () => {
+  // 1. Actualizar el estado en el servidor.
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
+  
+  if (token && user) {
+    try {
+      await userService.updateOnboarding(true);
+    } catch (error) {
+      const errorDetails = apiHelpers.handleError(error);
+      console.warn('No se pudo guardar el estado de onboarding en el servidor:', errorDetails.message);
     }
-
-    // 2. Actualizar el usuario en localStorage para que ProtectedRoute te deje continuar.
-    if (user) {
-      user.onboarded = 1; // O `true` si tu backend devuelve un booleano.
-      localStorage.setItem('user', JSON.stringify(user));
-    }
-
-    // 3. Llamar a la función onComplete para redirigir al dashboard.
-    if (onComplete) {
-      onComplete();
-    }
-  };
-
-  const stepsContent = [
-    {
-      title: 'Paso 1: Crea una solicitud',
-      description: 'Elige el servicio que necesitas, agrega una descripción detallada y adjunta fotos para mayor claridad.'
-    },
-    {
-      title: 'Paso 2: Sube tus fotos',
-      description: 'Añade imágenes desde tu dispositivo. Esto ayuda al técnico a entender mejor el problema antes de llegar.'
-    },
-    {
-      title: 'Paso 3: Revisa y Chatea',
-      description: 'Puedes ver el estado de tu solicitud en "Mis Solicitudes" y comunicarte directamente con el personal asignado.'
-    }
-  ];
+  }
+  
+  // 2. Actualizar el usuario en localStorage
+  if (user) {
+    user.onboarded = 1;
+    localStorage.setItem('user', JSON.stringify(user));
+  }
+  
+  // 3. Llamar a la función onComplete para redirigir al dashboard.
+  if (onComplete) {
+    onComplete();
+  }
 
   // La UI es la del modal, pero renderizada como una página completa.
   return (

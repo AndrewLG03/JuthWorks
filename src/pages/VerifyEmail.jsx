@@ -1,42 +1,26 @@
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { authService, apiHelpers } from '../api';
 
-const VerifyEmail = () => {
-    const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const userId = searchParams.get('userId');
-    const [code, setCode] = useState('');
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
-    const [loading, setLoading] = useState(false);
-
-    const handleVerify = async e => {
-        e.preventDefault();
-        if (!code.trim()) {
-            setError('Ingresa el código recibido');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
-            const res = await fetch('http://localhost:5000/api/verify-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, verificationCode: code.trim() })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setSuccess(true);
-            } else {
-                setError(data.error || 'Código inválido o expirado');
-            }
-        } catch (err) {
-            console.error('Verification fetch error:', err);
-            setError('Error de conexión al verificar');
-        } finally {
-            setLoading(false);
-        }
-    };
+const handleVerify = async (e) => {
+  e.preventDefault();
+  if (!code.trim()) {
+    setError('Ingresa el código recibido');
+    return;
+  }
+  
+  setLoading(true);
+  setError('');
+  try {
+    await authService.verifyEmail(userId, code.trim());
+    setSuccess(true);
+  } catch (error) {
+    console.error('Verification fetch error:', error);
+    const errorDetails = apiHelpers.handleError(error);
+    setError(errorDetails.data?.error || 'Código inválido o expirado');
+  } finally {
+    setLoading(false);
+  }
 
     // Estilos tomados de Register.jsx para consistencia visual
     const styles = {

@@ -4,52 +4,28 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import BottomNavigation from '../components/BottomNavigation';
 import { Settings, Search, BarChart3, FileText, Users } from 'lucide-react';
+import { adminService, apiHelpers } from '../api';
 
-const AdminPanel = () => {
-  const navigate = useNavigate();
-  const { user } = useUser();
-  const [solicitudes, setSolicitudes] = useState([]);
-  const [solicitudesNuevas, setSolicitudesNuevas] = useState([]);
-  const [presupuestosPendientes, setPresupuestosPendientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filtroFecha, setFiltroFecha] = useState('');
-
-  // Verificar que el usuario sea administrador
-  useEffect(() => {
-    if (!user || user.tipo_usuario !== 'administrador') {
-      navigate('/dashboard');
-      return;
-    }
+const cargarDatosAdmin = async () => {
+  try {
+    setLoading(true);
+    const data = await adminService.getAdminRequests();
+    setSolicitudes(data);
     
-    cargarDatosAdmin();
-  }, [user, navigate]);
-
-  const cargarDatosAdmin = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('http://localhost:5000/api/admin/requests');
-      
-      if (!response.ok) {
-        throw new Error('Error al cargar datos');
-      }
-      
-      const data = await response.json();
-      setSolicitudes(data);
-      
-      // Filtrar solicitudes nuevas (pendientes)
-      const nuevas = data.filter(s => s.estado === 'pendiente');
-      setSolicitudesNuevas(nuevas);
-      
-      // Filtrar presupuestos pendientes (en revisión)
-      const pendientes = data.filter(s => s.estado === 'en_revision');
-      setPresupuestosPendientes(pendientes);
-      
-    } catch (error) {
-      console.error('Error cargando datos admin:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Filtrar solicitudes nuevas (pendientes)
+    const nuevas = data.filter(s => s.estado === 'pendiente');
+    setSolicitudesNuevas(nuevas);
+    
+    // Filtrar presupuestos pendientes (en revisión)
+    const pendientes = data.filter(s => s.estado === 'en_revision');
+    setPresupuestosPendientes(pendientes);
+  } catch (error) {
+    console.error('Error cargando datos admin:', error);
+    const errorDetails = apiHelpers.handleError(error);
+    // Mostrar error apropiadamente
+  } finally {
+    setLoading(false);
+  }
 
   const filtrarPorFecha = () => {
     if (!filtroFecha) return;

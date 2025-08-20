@@ -4,176 +4,73 @@ import { Settings, Camera, ArrowLeft, Upload, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNavigation from '../components/BottomNavigation';
 import {  useUser } from '../context/UserContext';
+import { servicesService, apiHelpers } from '../api';
 
-const Services = () => {
-  const navigate = useNavigate();
-  const fileInputRef = useRef(null);
-  const { username } = useUser();
+const fetchServices = async () => {
+  try {
+    const servicesData = await servicesService.getServices();
+    setServices(servicesData);
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    const errorDetails = apiHelpers.handleError(error);
+    // Manejar error apropiadamente
+  }
+};
 
-  // Estados principales
-  const [currentStep, setCurrentStep] = useState(1); // 1: Selección, 2: Detalles
-  const [currentService, setCurrentService] = useState('construccion');
-  const [maintenanceType, setMaintenanceType] = useState('electrico');
-  const [services, setServices] = useState([]);
-  const [user, setUser] = useState(null);
+const handleSubmitService = async () => {
+  if (!user) {
+    alert('Debes estar logueado para solicitar un servicio');
+    return;
+  }
+  if (!title.trim() || !description.trim()) {
+    alert('El título y la descripción son obligatorios');
+    return;
+  }
   
-  // Estados para el segundo paso
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedPhotos, setSelectedPhotos] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Estados para el focus de inputs
-  const [titleFocused, setTitleFocused] = useState(false);
-  const [descriptionFocused, setDescriptionFocused] = useState(false);
-
-  // Optimización para previews de imágenes
-  const photoPreviews = useMemo(() => {
-    return selectedPhotos.map(file => ({
-      file,
-      url: URL.createObjectURL(file)
-    }));
-  }, [selectedPhotos]);
-
-  useEffect(() => {
-    return () => {
-      photoPreviews.forEach(p => URL.revokeObjectURL(p.url));
+  setIsSubmitting(true);
+  try {
+    // Determinar el tipo de servicio y descripción final
+    let finalDescription = description;
+    if (currentService === 'mantenimiento') {
+      finalDescription = `${maintenanceTypes[maintenanceType]}: ${description}`;
+    }
+    
+    const serviceMap = {
+      construccion: 1,
+      remodelacion: 2,
+      mantenimiento: 3
     };
-  }, [photoPreviews]);
-
-  // Cargar usuario y servicios al montar el componente
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user') || 'null');
-    setUser(userData);
-    fetchServices();
-  }, []);
-
-  const fetchServices = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/services');
-      if (response.ok) {
-        const servicesData = await response.json();
-        setServices(servicesData);
+    
+    const serviceId = serviceMap[currentService];
+    
+    // Crear la solicitud de servicio
+    const serviceData = {
+      usuario_id: user.id,
+      servicio_id: serviceId,
+      descripcion: `${title} - ${finalDescription}`
+    };
+    
+    const result = await servicesService.requestService(serviceData);
+    const solicitudId = result.solicitudId;
+    
+    // Si hay fotos, subirlas
+    if (selectedPhotos.length > 0) {
+      try {
+        await servicesService.uploadPhotos(solicitudId, selectedPhotos);
+      } catch (photoError) {
+        console.error('Error al subir fotos:', photoError);
       }
-    } catch (error) {
-      console.error('Error fetching services:', error);
     }
-  };
-
-  const serviceDescriptions = {
-    construccion: "Construcción completa desde cero de proyectos residenciales y comerciales. Incluye planificación, diseño, permisos y ejecución completa de la obra con materiales de primera calidad. \n\n**Cada solicitud tiene un costo de 20.000₡ que se deberán pagar al momento de solicitar el servicio.",
-    remodelacion: "Renovación y modernización de espacios existentes. Transformamos su hogar o negocio con nuevos diseños, acabados modernos y optimización de espacios. \n\n**Cada solicitud tiene un costo de 20.000₡ que se deberán pagar al momento de solicitar el servicio.",
-    mantenimiento: "Servicios especializados de mantenimiento. Reparaciones, instalaciones y mantenimiento preventivo para conservar su propiedad en óptimas condiciones. \n\n**Cada solicitud tiene un costo de 20.000₡ que se deberán pagar al momento de solicitar el servicio."
-  };
-
-  const maintenanceTypes = {
-    electrico: "Mantenimiento Eléctrico",
-    hidraulico: "Mantenimiento Hidráulico", 
-    estructural: "Mantenimiento Estructural"
-  };
-
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length > 0) {
-      setSelectedPhotos(prev => [...prev, ...files]);
-    }
-  };
-
-  const removePhoto = (index) => {
-    setSelectedPhotos(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleNext = () => {
-    if (currentStep === 1) {
-      setCurrentStep(2);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep === 2) {
-      setCurrentStep(1);
-    } else {
-      navigate('/dashboard');
-    }
-  };
-
-  const handleSubmitService = async () => {
-    if (!user) {
-      alert('Debes estar logueado para solicitar un servicio');
-      return;
-    }
-
-    if (!title.trim() || !description.trim()) {
-      alert('El título y la descripción son obligatorios');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Determinar el tipo de servicio y descripción final
-      let finalDescription = description;
-      if (currentService === 'mantenimiento') {
-        finalDescription = `${maintenanceTypes[maintenanceType]}: ${description}`;
-      }
-
-      const serviceMap = {
-        construccion: 1,
-        remodelacion: 2,
-        mantenimiento: 3
-      };
-
-      const serviceId = serviceMap[currentService];
-
-      // Crear la solicitud de servicio
-      const serviceData = {
-        usuario_id: user.id,
-        servicio_id: serviceId,
-        descripcion: `${title} - ${finalDescription}`
-      };
-
-      const response = await fetch('http://localhost:5000/api/request-service', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(serviceData),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        const solicitudId = result.solicitudId;
-
-        // Si hay fotos, subirlas
-        if (selectedPhotos.length > 0) {
-          const formData = new FormData();
-          selectedPhotos.forEach(photo => {
-            formData.append('photos', photo);
-          });
-
-          const photoResponse = await fetch(`http://localhost:5000/api/upload-photos/${solicitudId}`, {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!photoResponse.ok) {
-            console.error('Error al subir fotos');
-          }
-        }
-
-        alert('¡Solicitud de servicio enviada exitosamente!');
-        navigate('/orders');
-      } else {
-        const error = await response.json();
-        alert('Error al enviar solicitud: ' + error.error);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error de conexión');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    
+    alert('¡Solicitud de servicio enviada exitosamente!');
+    navigate('/orders');
+  } catch (error) {
+    console.error('Error:', error);
+    const errorDetails = apiHelpers.handleError(error);
+    alert('Error al enviar solicitud: ' + (errorDetails.data?.error || errorDetails.message));
+  } finally {
+    setIsSubmitting(false);
+  }
 
   const Header = () => (
     <div style={{

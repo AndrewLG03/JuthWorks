@@ -2,58 +2,32 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { authService, apiHelpers } from '../api';
 
-const Login = () => {
-  const [formData, setFormData] = useState({
-    usuario: '',
-    contrasena: '',
-    tipo_usuario: 'Personal'
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError('');
   
-  const navigate = useNavigate();
-  const { login } = useUser();
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError('');
-  };
-
-    const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-      console.log('Login response (raw):', data); // <- VERIFICA qué te llega exactamente
-      // data debería tener { user, token }
-      login(data.user, data.token);
-      // redirección
-      if (data.user.tipo_usuario === 'administrador') navigate('/admin');
-      else navigate('/dashboard');
+  try {
+    const data = await authService.login(formData);
+    console.log('Login response (raw):', data);
+    
+    // data debería tener { user, token }
+    login(data.user, data.token);
+    
+    // redirección
+    if (data.user.tipo_usuario === 'administrador') {
+      navigate('/admin');
     } else {
-      setError(data.error || 'Error al iniciar sesión');
+      navigate('/dashboard');
     }
-
-    } catch (error) {
-      setError('Error de conexión. Intenta nuevamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    setError(errorDetails.data?.error || errorDetails.message || 'Error al iniciar sesión');
+  } finally {
+    setLoading(false);
+  }
 
   // Íconos SVG
   const EyeIcon = () => (

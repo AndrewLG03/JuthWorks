@@ -1,117 +1,64 @@
-// frontend/src/pages/Payment.jsx
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
-import BottomNavigation from '../components/BottomNavigation';
-import { toast } from 'react-toastify';
-import { ArrowLeft, CreditCard, User, Shield, Calendar, Lock, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { paymentService, apiHelpers } from '../api';
 
-export default function Payment() {
-  const { solicitudId } = useParams();
-  const { token, user } = useUser();
-  const navigate = useNavigate();
-
-  const [form, setForm] = useState({
-    cedula: user?.cedula || '',
-    primer_nombre: user?.primer_nombre || '',
-    segundo_nombre: user?.segundo_nombre || '',
-    primer_apellido: user?.primer_apellido || '',
-    segundo_apellido: user?.segundo_apellido || '',
-    card_number: '',
-    expiracion: '',
-    cvv: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [exchangeRate, setExchangeRate] = useState(null);
-  const [exchangeLoading, setExchangeLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(null);
-
-  const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
-
-  // Función para obtener el tipo de cambio desde el backend
-  const fetchExchangeRate = async () => {
-    try {
-      setExchangeLoading(true);
-
-      const response = await fetch('http://localhost:5000/api/exchange-rate', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al obtener el tipo de cambio');
-      }
-
-      const result = await response.json();
+// Función para obtener el tipo de cambio desde el backend
+const fetchExchangeRate = async () => {
+  try {
+    setExchangeLoading(true);
+    const result = await paymentService.getExchangeRate();
+    
+    if (result.success) {
+      setExchangeRate(result.data);
+      setLastUpdated(new Date(result.data.lastUpdated));
       
-      if (result.success) {
-        setExchangeRate(result.data);
-        setLastUpdated(new Date(result.data.lastUpdated));
-        
-        if (result.error) {
-          toast.error(result.error);
-        } else if (result.warning) {
-          toast.warning(result.warning);
-        } else if (result.cached) {
-          toast.info('Tipo de cambio obtenido desde cache');
-        } else {
-          const source = result.data.source || 'BCCR';
-          toast.success(`Tipo de cambio actualizado desde ${source}`);
-        }
+      if (result.error) {
+        toast.error(result.error);
+      } else if (result.warning) {
+        toast.warning(result.warning);
+      } else if (result.cached) {
+        toast.info('Tipo de cambio obtenido desde cache');
       } else {
-        throw new Error('No se pudo obtener el tipo de cambio');
+        const source = result.data.source || 'BCCR';
+        toast.success(`Tipo de cambio actualizado desde ${source}`);
       }
-
-    } catch (error) {
-      console.error('Error fetching exchange rate:', error);
-      toast.error('Error al obtener el tipo de cambio');
-      
-      // Mantener el fallback local solo como último recurso
-      setExchangeRate({
-        compra: 510.50,
-        venta: 520.25,
-        fecha: new Date().toISOString().split('T')[0],
-        fallback: true
-      });
-      setLastUpdated(new Date());
-    } finally {
-      setExchangeLoading(false);
+    } else {
+      throw new Error('No se pudo obtener el tipo de cambio');
     }
-  };
+  } catch (error) {
+    console.error('Error fetching exchange rate:', error);
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || 'Error al obtener el tipo de cambio');
+    
+    // Mantener el fallback local solo como último recurso
+    setExchangeRate({
+      compra: 510.50,
+      venta: 520.25,
+      fecha: new Date().toISOString().split('T')[0],
+      fallback: true
+    });
+    setLastUpdated(new Date());
+  } finally {
+    setExchangeLoading(false);
+  }
+};
 
-  // Efecto para cargar el tipo de cambio al montar el componente
-  useEffect(() => {
-    fetchExchangeRate();
-    // Actualizar cada 5 minutos
-    const interval = setInterval(fetchExchangeRate, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [token]);
-
-  const handleSubmit = async e => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ ...form, solicitud_id: parseInt(solicitudId) })
-      });
-      if (!res.ok) throw new Error('Error al procesar el pago');
-      toast.success('Pago realizado con éxito');
-      navigate('/historial');
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  
+  try {
+    await paymentService.processPayment({
+      ...form,
+      solicitud_id: parseInt(solicitudId)
+    });
+    toast.success('Pago realizado con éxito');
+    navigate('/historial');
+  } catch (error) {
+    console.error(error);
+    const errorDetails = apiHelpers.handleError(error);
+    toast.error(errorDetails.data?.error || errorDetails.message);
+  } finally {
+    setLoading(false);
+  }
 
   // Estilos del componente (mantenemos los mismos estilos)
   const styles = {

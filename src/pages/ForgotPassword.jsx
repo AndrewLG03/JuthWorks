@@ -1,6 +1,7 @@
 // frontend/src/pages/ForgotPassword.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../services/api'; // ✅ usamos api.js
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -9,26 +10,33 @@ const ForgotPassword = () => {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!email) {
       setError('Por favor ingresa tu correo electrónico');
       return;
     }
-    
+
     setLoading(true);
-    
-    // Simular envío de email
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    setSuccess(false);
+
+    try {
+      // ✅ llamada real al backend
+      await api.post('/auth/forgot-password', { email });
+
       setSuccess(true);
-      
+
       // Redirigir después de 3 segundos
       setTimeout(() => {
         navigate('/login');
       }, 3000);
-    }, 1500);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al procesar la solicitud');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Estilos

@@ -4,75 +4,35 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import BottomNavigation from '../components/BottomNavigation';
 import { ArrowLeft, MessageCircle, Phone, Mail, HelpCircle, Send, CheckCircle } from 'lucide-react';
+import { supportService, apiHelpers } from '../api';
 
-    const Support = () => {
-    const navigate = useNavigate();
-    const { user } = useUser();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!formData.asunto.trim() || !formData.mensaje.trim()) {
+    setError('Por favor, completa todos los campos obligatorios.');
+    return;
+  }
+  
+  try {
+    setLoading(true);
+    setError(null);
     
-    // Estados para el formulario de contacto
-    const [formData, setFormData] = useState({
-        asunto: '',
-        mensaje: '',
-        tipo: 'consulta' // consulta, problema, sugerencia
+    await supportService.sendSupportMessage({
+      ...formData,
+      usuario_id: user?.id_usuario
     });
-    const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState(false);
-    const [error, setError] = useState(null);
-
-    // Manejar cambios en el formulario
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-        ...prev,
-        [name]: value
-        }));
-    };
-
-    // Enviar formulario de soporte
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!formData.asunto.trim() || !formData.mensaje.trim()) {
-        setError('Por favor, completa todos los campos obligatorios.');
-        return;
-        }
-
-        try {
-        setLoading(true);
-        setError(null);
-
-        const response = await fetch('http://localhost:5000/api/support', {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-            ...formData,
-            usuario_id: user?.id_usuario
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('Error al enviar el mensaje de soporte');
-        }
-
-        setSuccess(true);
-        setFormData({
-            asunto: '',
-            mensaje: '',
-            tipo: 'consulta'
-        });
-
-        // Ocultar mensaje de éxito después de 3 segundos
-        setTimeout(() => setSuccess(false), 3000);
-
-        } catch (err) {
-        setError(err.message);
-        } finally {
-        setLoading(false);
-        }
-    };
+    
+    setSuccess(true);
+    setFormData({ asunto: '', mensaje: '', tipo: 'consulta' });
+    
+    // Ocultar mensaje de éxito después de 3 segundos
+    setTimeout(() => setSuccess(false), 3000);
+  } catch (error) {
+    const errorDetails = apiHelpers.handleError(error);
+    setError(errorDetails.data?.error || errorDetails.message);
+  } finally {
+    setLoading(false);
+  }
 
     const supportOptions = [
         {
