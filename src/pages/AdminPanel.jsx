@@ -6,27 +6,41 @@ import BottomNavigation from '../components/BottomNavigation';
 import { Settings, Search, BarChart3, FileText, Users } from 'lucide-react';
 import { adminService, apiHelpers } from '../api';
 
-const cargarDatosAdmin = async () => {
-  try {
-    setLoading(true);
-    const data = await adminService.getAdminRequests();
-    setSolicitudes(data);
-    
-    // Filtrar solicitudes nuevas (pendientes)
-    const nuevas = data.filter(s => s.estado === 'pendiente');
-    setSolicitudesNuevas(nuevas);
-    
-    // Filtrar presupuestos pendientes (en revisión)
-    const pendientes = data.filter(s => s.estado === 'en_revision');
-    setPresupuestosPendientes(pendientes);
-  } catch (error) {
-    console.error('Error cargando datos admin:', error);
-    const errorDetails = apiHelpers.handleError(error);
-    // Mostrar error apropiadamente
-  } finally {
-    setLoading(false);
-  }
+const AdminPanel = () => {
+  const navigate = useNavigate();
+  const { user } = useUser();
+  
+  // Estados del componente
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [solicitudesNuevas, setSolicitudesNuevas] = useState([]);
+  const [presupuestosPendientes, setPresupuestosPendientes] = useState([]);
+  const [filtroFecha, setFiltroFecha] = useState('');
+  const [loading, setLoading] = useState(true);
 
+  // Función para cargar datos del admin
+  const cargarDatosAdmin = async () => {
+    try {
+      setLoading(true);
+      const data = await adminService.getAdminRequests();
+      setSolicitudes(data);
+      
+      // Filtrar solicitudes nuevas (pendientes)
+      const nuevas = data.filter(s => s.estado === 'pendiente');
+      setSolicitudesNuevas(nuevas);
+      
+      // Filtrar presupuestos pendientes (en revisión)
+      const pendientes = data.filter(s => s.estado === 'en_revision');
+      setPresupuestosPendientes(pendientes);
+    } catch (error) {
+      console.error('Error cargando datos admin:', error);
+      const errorDetails = apiHelpers.handleError(error);
+      // Mostrar error apropiadamente
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para filtrar por fecha
   const filtrarPorFecha = () => {
     if (!filtroFecha) return;
     
@@ -40,6 +54,19 @@ const cargarDatosAdmin = async () => {
     // Aquí puedes implementar la lógica para mostrar las solicitudes filtradas
   };
 
+  // useEffect para cargar datos al montar el componente
+  useEffect(() => {
+    cargarDatosAdmin();
+  }, []);
+
+  // useEffect para filtrar cuando cambia la fecha
+  useEffect(() => {
+    if (filtroFecha) {
+      filtrarPorFecha();
+    }
+  }, [filtroFecha]);
+
+  // Estilos del componente
   const styles = {
     container: {
       minHeight: '100vh',
@@ -200,6 +227,7 @@ const cargarDatosAdmin = async () => {
     },
   };
 
+  // Función para manejar hover de las tarjetas
   const handleCardHover = (e, isHovering) => {
     if (isHovering) {
       e.currentTarget.style.backgroundColor = '#c0c0c0';
@@ -212,6 +240,7 @@ const cargarDatosAdmin = async () => {
     }
   };
 
+  // Componente de carga
   if (loading) {
     return (
       <div style={styles.container}>
@@ -250,7 +279,9 @@ const cargarDatosAdmin = async () => {
           JUTH<br />WORKS
         </div>
         <div style={styles.infoText}>
-          <h2 style={styles.infoTitle}>Información</h2>
+          <h2 style={styles.infoTitle}>
+            {user ? `Panel de Admin - ${user.primer_nombre}` : 'Panel de Administración'}
+          </h2>
         </div>
       </div>
 
