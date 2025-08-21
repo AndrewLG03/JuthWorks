@@ -1,6 +1,6 @@
 // frontend/src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -61,6 +61,19 @@ const globalStyles = {
   }
 };
 
+// Componente para verificar onboarding
+const OnboardingChecker = ({ children }) => {
+  const location = useLocation();
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  
+  // Si el usuario no ha completado onboarding y no está en la página de onboarding
+  if (user && user.onboarded === 0 && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+  
+  return children;
+};
+
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children, requiredRole = null }) => {
   const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -72,18 +85,11 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
   if (requiredRole && user.tipo_usuario !== requiredRole) {
     return <Navigate to="/dashboard" replace />;
   }
-
-  // 👇 2. RESTAURAR ESTA LÓGICA
-  // Si no ha hecho el onboarding y no está ya en /onboarding, se redirige
-  if (user.onboarded === 0 && window.location.pathname !== '/onboarding') {
-    return <Navigate to="/onboarding" replace />;
-  }
   
   return children;
 };
 
-
-// Layout principal (simplificado por ahora)
+// Layout principal
 const MainLayout = ({ children }) => {
   return (
     <div style={{ paddingBottom: '70px', minHeight: '100vh' }}>
@@ -128,101 +134,123 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/historial" element={
-            <ProtectedRoute>
-              <MainLayout>
-                <History />
-              </MainLayout>
-            </ProtectedRoute>
-          } />
           
-          {/* Rutas protegidas con layout */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Dashboard />
-              </MainLayout>
-            </ProtectedRoute>
-          } />
-          
-          {/* 👇 3. AÑADIR LA RUTA DE ONBOARDING */}
+          {/* Ruta de onboarding - protegida pero sin verificación de onboarding */}
           <Route path="/onboarding" element={
             <ProtectedRoute>
-              <Onboarding onComplete={() => window.location.href = '/dashboard'} />
+              <Onboarding />
             </ProtectedRoute>
           } />
-
-
+          
+          {/* Rutas protegidas con verificación de onboarding y layout */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <OnboardingChecker>
+                <MainLayout>
+                  <Dashboard />
+                </MainLayout>
+              </OnboardingChecker>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/historial" element={
+            <ProtectedRoute>
+              <OnboardingChecker>
+                <MainLayout>
+                  <History />
+                </MainLayout>
+              </OnboardingChecker>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/profile" element={
             <ProtectedRoute>
-              <MainLayout>
-                <ComingSoon pageName="Perfil" />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <ComingSoon pageName="Perfil" />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           <Route path="/services" element={
             <ProtectedRoute>
-              <MainLayout>
-                <Services />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <Services />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           <Route path="/orders" element={
             <ProtectedRoute>
-              <MainLayout>
-                <ComingSoon pageName="Órdenes" />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <ComingSoon pageName="Órdenes" />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           <Route path="/comments" element={
             <ProtectedRoute>
-              <MainLayout>
-                <Comments />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <Comments />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           <Route path="/support" element={
             <ProtectedRoute>
-              <MainLayout>
-                <Support />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <Support />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           <Route path="/settings" element={
             <ProtectedRoute>
-              <MainLayout>
-                <Settings />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <Settings />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           {/* Rutas de administrador */}
           <Route path="/admin" element={
             <ProtectedRoute requiredRole="administrador">
-              <MainLayout>
-                <AdminPanel />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <AdminPanel />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           <Route path="/admin/solicitudes-nuevas" element={
             <ProtectedRoute requiredRole="administrador">
-              <MainLayout>
-                <NewRequestsPage />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <NewRequestsPage />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
           <Route path="/admin/presupuestos-pendientes" element={
             <ProtectedRoute requiredRole="administrador">
-              <MainLayout>
-                <PendingQuotesPage />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <PendingQuotesPage />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
 
@@ -231,18 +259,22 @@ function App() {
             path="/payment/:solicitudId"
             element={
               <ProtectedRoute>
-                <MainLayout>
-                  <Payment />
-                </MainLayout>
+                <OnboardingChecker>
+                  <MainLayout>
+                    <Payment />
+                  </MainLayout>
+                </OnboardingChecker>
               </ProtectedRoute>
             }
           />
           
           <Route path="/admin/users" element={
             <ProtectedRoute requiredRole="administrador">
-              <MainLayout>
-                <ComingSoon pageName="Gestión de Usuarios" />
-              </MainLayout>
+              <OnboardingChecker>
+                <MainLayout>
+                  <ComingSoon pageName="Gestión de Usuarios" />
+                </MainLayout>
+              </OnboardingChecker>
             </ProtectedRoute>
           } />
           
