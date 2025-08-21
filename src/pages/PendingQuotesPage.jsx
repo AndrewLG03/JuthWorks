@@ -6,18 +6,28 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Calendar, FileText, AlertCircle, DollarSign } from 'lucide-react';
 import { adminService, apiHelpers } from '../api';
 
-const fetchPending = async () => {
-  setLoading(true);
-  try {
-    const data = await adminService.getPendingQuotes();
-    setQuotes(data);
-  } catch (error) {
-    console.error(error);
-    const errorDetails = apiHelpers.handleError(error);
-    // Manejar error apropiadamente
-  } finally {
-    setLoading(false);
-  }
+const PendingQuotesPage = () => {
+  const [quotes, setQuotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const fetchPending = async () => {
+    setLoading(true);
+    try {
+      const data = await adminService.getPendingQuotes();
+      setQuotes(data);
+    } catch (error) {
+      console.error(error);
+      const errorDetails = apiHelpers.handleError(error);
+      // Manejar error apropiadamente
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPending();
+  }, []);
 
   // --- Estilos ---
   const styles = {
@@ -225,4 +235,6 @@ const fetchPending = async () => {
       <BottomNavigation />
     </div>
   );
-}
+};
+
+export default PendingQuotesPage;
