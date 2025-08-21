@@ -94,3 +94,5 @@ const handleReject = async (id) => {
     </div>
   );
 }
+
+export default AdminRequests;
