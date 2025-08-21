@@ -6,37 +6,38 @@ import BottomNavigation from '../components/BottomNavigation';
 import { FileText, Calendar, AlertCircle, DollarSign } from 'lucide-react';
 import { userService, apiHelpers } from '../api';
 
-useEffect(() => {
-  if (!user) {
-    setLoading(false);
-    return;
-  }
+const History = () => {
+  const { user } = useUser();
+  const navigate = useNavigate();
+  
+  // Estados del componente
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const fetchRequests = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await userService.getUserRequests(user.id);
-      setRequests(data);
-    } catch (error) {
-      console.error('Error fetching requests:', error);
-      const errorDetails = apiHelpers.handleError(error);
-      setError(errorDetails.message);
-    } finally {
+  useEffect(() => {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  };
 
-  fetchRequests();
-}, [user]);
+    const fetchRequests = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await userService.getUserRequests(user.id);
+        setRequests(data);
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+        const errorDetails = apiHelpers.handleError(error);
+        setError(errorDetails.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (loading) {
-    return <p className="text-center mt-4">Cargando historial...</p>;
-  }
-
-  if (error) {
-    return <p className="text-center mt-4 text-red-500">{error}</p>;
-  }
+    fetchRequests();
+  }, [user]);
 
   // Nueva función para manejar la navegación al pago
   const handlePay = (solicitudId) => {
@@ -196,6 +197,30 @@ useEffect(() => {
     }
   };
 
+  if (loading) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Historial de Servicios</h1>
+        </div>
+        <p style={styles.loadingText}>Cargando historial...</p>
+        <BottomNavigation />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Historial de Servicios</h1>
+        </div>
+        <p style={styles.errorText}>Error: {error}</p>
+        <BottomNavigation />
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div style={styles.page}>
@@ -219,15 +244,7 @@ useEffect(() => {
       </div>
       
       <div style={styles.content}>
-        {loading ? (
-          <div style={styles.loadingText}>
-            <p>Cargando historial...</p>
-          </div>
-        ) : error ? (
-          <div style={styles.errorText}>
-            <p>Error: {error}</p>
-          </div>
-        ) : requests.length === 0 ? (
+        {requests.length === 0 ? (
           <div style={styles.emptyText}>
             <p>No tienes solicitudes de servicio aún</p>
           </div>
@@ -303,5 +320,6 @@ useEffect(() => {
       <BottomNavigation />
     </div>
   );
+};
 
 export default History;
