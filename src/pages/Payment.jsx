@@ -1,64 +1,109 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  ArrowLeft, 
+  User, 
+  CreditCard, 
+  Calendar, 
+  Lock, 
+  TrendingUp, 
+  TrendingDown, 
+  RefreshCw 
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { paymentService, apiHelpers } from '../api';
+import BottomNavigation from '../components/BottomNavigation';
 
-// Función para obtener el tipo de cambio desde el backend
-const fetchExchangeRate = async () => {
-  try {
-    setExchangeLoading(true);
-    const result = await paymentService.getExchangeRate();
-    
-    if (result.success) {
-      setExchangeRate(result.data);
-      setLastUpdated(new Date(result.data.lastUpdated));
-      
-      if (result.error) {
-        toast.error(result.error);
-      } else if (result.warning) {
-        toast.warning(result.warning);
-      } else if (result.cached) {
-        toast.info('Tipo de cambio obtenido desde cache');
-      } else {
-        const source = result.data.source || 'BCCR';
-        toast.success(`Tipo de cambio actualizado desde ${source}`);
-      }
-    } else {
-      throw new Error('No se pudo obtener el tipo de cambio');
-    }
-  } catch (error) {
-    console.error('Error fetching exchange rate:', error);
-    const errorDetails = apiHelpers.handleError(error);
-    toast.error(errorDetails.data?.error || 'Error al obtener el tipo de cambio');
-    
-    // Mantener el fallback local solo como último recurso
-    setExchangeRate({
-      compra: 510.50,
-      venta: 520.25,
-      fecha: new Date().toISOString().split('T')[0],
-      fallback: true
-    });
-    setLastUpdated(new Date());
-  } finally {
-    setExchangeLoading(false);
-  }
-};
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+const Payment = () => {
+  const { solicitudId } = useParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [exchangeLoading, setExchangeLoading] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   
-  try {
-    await paymentService.processPayment({
+  const [form, setForm] = useState({
+    cedula: '',
+    primer_nombre: '',
+    segundo_nombre: '',
+    primer_apellido: '',
+    segundo_apellido: '',
+    card_number: '',
+    expiracion: '',
+    cvv: ''
+  });
+
+  const handleChange = (e) => {
+    setForm({
       ...form,
-      solicitud_id: parseInt(solicitudId)
+      [e.target.name]: e.target.value
     });
-    toast.success('Pago realizado con éxito');
-    navigate('/historial');
-  } catch (error) {
-    console.error(error);
-    const errorDetails = apiHelpers.handleError(error);
-    toast.error(errorDetails.data?.error || errorDetails.message);
-  } finally {
-    setLoading(false);
-  }
+  };
+
+  useEffect(() => {
+    fetchExchangeRate();
+  }, []);
+
+  // Función para obtener el tipo de cambio desde el backend
+  const fetchExchangeRate = async () => {
+    try {
+      setExchangeLoading(true);
+      const result = await paymentService.getExchangeRate();
+      
+      if (result.success) {
+        setExchangeRate(result.data);
+        setLastUpdated(new Date(result.data.lastUpdated));
+        
+        if (result.error) {
+          toast.error(result.error);
+        } else if (result.warning) {
+          toast.warning(result.warning);
+        } else if (result.cached) {
+          toast.info('Tipo de cambio obtenido desde cache');
+        } else {
+          const source = result.data.source || 'BCCR';
+          toast.success(`Tipo de cambio actualizado desde ${source}`);
+        }
+      } else {
+        throw new Error('No se pudo obtener el tipo de cambio');
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      const errorDetails = apiHelpers.handleError(error);
+      toast.error(errorDetails.data?.error || 'Error al obtener el tipo de cambio');
+      
+      // Mantener el fallback local solo como último recurso
+      setExchangeRate({
+        compra: 510.50,
+        venta: 520.25,
+        fecha: new Date().toISOString().split('T')[0],
+        fallback: true
+      });
+      setLastUpdated(new Date());
+    } finally {
+      setExchangeLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      await paymentService.processPayment({
+        ...form,
+        solicitud_id: parseInt(solicitudId)
+      });
+      toast.success('Pago realizado con éxito');
+      navigate('/historial');
+    } catch (error) {
+      console.error(error);
+      const errorDetails = apiHelpers.handleError(error);
+      toast.error(errorDetails.data?.error || errorDetails.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Estilos del componente (mantenemos los mismos estilos)
   const styles = {
@@ -484,4 +529,6 @@ const handleSubmit = async (e) => {
       <BottomNavigation />
     </div>
   );
-}
+};
+
+export default Payment;
