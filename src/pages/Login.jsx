@@ -4,30 +4,52 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { authService, apiHelpers } from '../api';
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+const Login = () => {
+  const navigate = useNavigate();
+  const { login } = useUser();
   
-  try {
-    const data = await authService.login(formData);
-    console.log('Login response (raw):', data);
+  // Estados
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    usuario: '',
+    contrasena: '',
+    tipo_usuario: ''
+  });
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
     
-    // data debería tener { user, token }
-    login(data.user, data.token);
-    
-    // redirección
-    if (data.user.tipo_usuario === 'administrador') {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
+    try {
+      const data = await authService.login(formData);
+      console.log('Login response (raw):', data);
+      
+      // data debería tener { user, token }
+      login(data.user, data.token);
+      
+      // redirección
+      if (data.user.tipo_usuario === 'administrador') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      const errorDetails = apiHelpers.handleError(error);
+      setError(errorDetails.data?.error || errorDetails.message || 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    const errorDetails = apiHelpers.handleError(error);
-    setError(errorDetails.data?.error || errorDetails.message || 'Error al iniciar sesión');
-  } finally {
-    setLoading(false);
-  }
+  };
 
   // Íconos SVG
   const EyeIcon = () => (
@@ -100,7 +122,7 @@ const handleSubmit = async (e) => {
       boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       padding: '2.5rem 2rem',
       width: '100%',
-      maxWidth: '450px', // Aumentado para acomodar 3 opciones
+      maxWidth: '450px',
     },
     formTitle: {
       fontSize: '1.75rem',
@@ -165,11 +187,11 @@ const handleSubmit = async (e) => {
     },
     userTypeButtons: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr 1fr', // Cambiado a 3 columnas
-      gap: '0.75rem', // Reducido el gap
+      gridTemplateColumns: '1fr 1fr 1fr',
+      gap: '0.75rem',
     },
     userTypeButton: {
-      padding: '1.25rem 0.75rem', // Ajustado el padding
+      padding: '1.25rem 0.75rem',
       borderRadius: '12px',
       border: '2px solid #d1d5db',
       display: 'flex',
@@ -185,19 +207,19 @@ const handleSubmit = async (e) => {
       backgroundColor: '#ede9fe',
     },
     iconContainer: {
-      width: '50px', // Reducido el tamaño
+      width: '50px',
       height: '50px',
       borderRadius: '12px',
       border: '2px dashed #9ca3af',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: '0.5rem', // Reducido el margen
+      marginBottom: '0.5rem',
       backgroundColor: '#f9fafb',
     },
     userTypeText: {
       fontWeight: '500',
-      fontSize: '0.85rem', // Reducido el tamaño de fuente
+      fontSize: '0.85rem',
       color: '#374151',
       textAlign: 'center',
     },
