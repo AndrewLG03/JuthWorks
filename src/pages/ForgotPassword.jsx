@@ -1,7 +1,7 @@
 // frontend/src/pages/ForgotPassword.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../services/api'; // ✅ usamos api.js
+import { authService, apiHelpers } from '../api'; // ✅ Corregida la importación
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -23,8 +23,8 @@ const ForgotPassword = () => {
     setSuccess(false);
 
     try {
-      // ✅ llamada real al backend
-      await api.post('/auth/forgot-password', { email });
+      // ✅ usando authService en lugar de api directo
+      await authService.forgotPassword(email);
 
       setSuccess(true);
 
@@ -33,7 +33,8 @@ const ForgotPassword = () => {
         navigate('/login');
       }, 3000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al procesar la solicitud');
+      const errorDetails = apiHelpers.handleError(err);
+      setError(errorDetails.message || 'Error al procesar la solicitud');
     } finally {
       setLoading(false);
     }
