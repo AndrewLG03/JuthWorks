@@ -3,75 +3,199 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Settings, Camera, ArrowLeft, Upload, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNavigation from '../components/BottomNavigation';
-import {  useUser } from '../context/UserContext';
+import { useUser } from '../context/UserContext';
 import { servicesService, apiHelpers } from '../api';
 
-const fetchServices = async () => {
-  try {
-    const servicesData = await servicesService.getServices();
-    setServices(servicesData);
-  } catch (error) {
-    console.error('Error fetching services:', error);
-    const errorDetails = apiHelpers.handleError(error);
-    // Manejar error apropiadamente
-  }
-};
-
-const handleSubmitService = async () => {
-  if (!user) {
-    alert('Debes estar logueado para solicitar un servicio');
-    return;
-  }
-  if (!title.trim() || !description.trim()) {
-    alert('El título y la descripción son obligatorios');
-    return;
-  }
+const Services = () => {
+  const navigate = useNavigate();
+  const { user } = useUser();
+  const fileInputRef = useRef(null);
   
-  setIsSubmitting(true);
-  try {
-    // Determinar el tipo de servicio y descripción final
-    let finalDescription = description;
-    if (currentService === 'mantenimiento') {
-      finalDescription = `${maintenanceTypes[maintenanceType]}: ${description}`;
-    }
-    
-    const serviceMap = {
-      construccion: 1,
-      remodelacion: 2,
-      mantenimiento: 3
-    };
-    
-    const serviceId = serviceMap[currentService];
-    
-    // Crear la solicitud de servicio
-    const serviceData = {
-      usuario_id: user.id,
-      servicio_id: serviceId,
-      descripcion: `${title} - ${finalDescription}`
-    };
-    
-    const result = await servicesService.requestService(serviceData);
-    const solicitudId = result.solicitudId;
-    
-    // Si hay fotos, subirlas
-    if (selectedPhotos.length > 0) {
-      try {
-        await servicesService.uploadPhotos(solicitudId, selectedPhotos);
-      } catch (photoError) {
-        console.error('Error al subir fotos:', photoError);
-      }
-    }
-    
-    alert('¡Solicitud de servicio enviada exitosamente!');
-    navigate('/orders');
-  } catch (error) {
-    console.error('Error:', error);
-    const errorDetails = apiHelpers.handleError(error);
-    alert('Error al enviar solicitud: ' + (errorDetails.data?.error || errorDetails.message));
-  } finally {
-    setIsSubmitting(false);
-  }
+  // Estados del componente
+  const [currentService, setCurrentService] = useState('construccion');
+  const [currentStep, setCurrentStep] = useState(1);
+  const [maintenanceType, setMaintenanceType] = useState('electrico');
+  const [services, setServices] = useState([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [titleFocused, setTitleFocused] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
+  // Configuración de tipos de mantenimiento
+  const maintenanceTypes = {
+    electrico: 'Mantenimiento Eléctrico',
+    plomeria: 'Plomería',
+    general: 'Mantenimiento General'
+  };
+
+  // Descripciones de servicios
+  const serviceDescriptions = {
+    construccion: `Construcción completa desde cero para tu hogar o negocio.
+
+• Planificación y diseño arquitectónico
+• Gestión de permisos y documentación
+• Construcción con materiales de calidad
+• Supervisión técnica especializada
+• Entrega con garantías completas
+
+Perfecto para proyectos nuevos que requieren una construcción integral desde los cimientos.`,
+    
+    remodelacion: `Transformamos y modernizamos tus espacios existentes.
+
+• Remodelación de cocinas y baños
+• Ampliaciones y modificaciones
+• Cambio de pisos y acabados
+• Actualización de instalaciones
+• Diseño de interiores personalizado
+
+Ideal para renovar, ampliar o modernizar tu hogar sin partir de cero.`,
+    
+    mantenimiento: `Servicios especializados de mantenimiento y reparación.
+
+• Reparaciones eléctricas y de plomería
+• Mantenimiento preventivo
+• Solución de problemas urgentes
+• Instalaciones y conexiones
+• Revisiones técnicas periódicas
+
+Perfecto para mantener tu hogar en óptimas condiciones y solucionar problemas específicos.`
+  };
+
+  // Función para obtener servicios
+  const fetchServices = async () => {
+    try {
+      const servicesData = await servicesService.getServices();
+      setServices(servicesData);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      const errorDetails = apiHelpers.handleError(error);
+      // Manejar error apropiadamente
+    }
+  };
+
+  // Efecto para cargar servicios al montar el componente
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  // Manejar carga de fotos
+  const handlePhotoUpload = (event) => {
+    const files = Array.from(event.target.files);
+    
+    if (selectedPhotos.length + files.length > 5) {
+      alert('Máximo 5 fotos permitidas');
+      return;
+    }
+
+    const validFiles = files.filter(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`${file.name} es muy grande. Máximo 5MB por foto.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length > 0) {
+      setSelectedPhotos(prev => [...prev, ...validFiles]);
+      
+      // Crear previews
+      const newPreviews = validFiles.map(file => ({
+        file,
+        url: URL.createObjectURL(file)
+      }));
+      
+      setPhotoPreviews(prev => [...prev, ...newPreviews]);
+    }
+  };
+
+  // Remover foto
+  const removePhoto = (index) => {
+    // Liberar URL del objeto
+    URL.revokeObjectURL(photoPreviews[index].url);
+    
+    setSelectedPhotos(prev => prev.filter((_, i) => i !== index));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Manejar navegación hacia atrás
+  const handleBack = () => {
+    if (currentStep === 2) {
+      setCurrentStep(1);
+    } else {
+      navigate('/');
+    }
+  };
+
+  // Manejar siguiente paso
+  const handleNext = () => {
+    if (currentService === 'mantenimiento' && !maintenanceType) {
+      alert('Selecciona un tipo de mantenimiento');
+      return;
+    }
+    setCurrentStep(2);
+  };
+
+  // Manejar envío del servicio
+  const handleSubmitService = async () => {
+    if (!user) {
+      alert('Debes estar logueado para solicitar un servicio');
+      return;
+    }
+    if (!title.trim() || !description.trim()) {
+      alert('El título y la descripción son obligatorios');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      // Determinar el tipo de servicio y descripción final
+      let finalDescription = description;
+      if (currentService === 'mantenimiento') {
+        finalDescription = `${maintenanceTypes[maintenanceType]}: ${description}`;
+      }
+      
+      const serviceMap = {
+        construccion: 1,
+        remodelacion: 2,
+        mantenimiento: 3
+      };
+      
+      const serviceId = serviceMap[currentService];
+      
+      // Crear la solicitud de servicio
+      const serviceData = {
+        usuario_id: user.id,
+        servicio_id: serviceId,
+        descripcion: `${title} - ${finalDescription}`
+      };
+      
+      const result = await servicesService.requestService(serviceData);
+      const solicitudId = result.solicitudId;
+      
+      // Si hay fotos, subirlas
+      if (selectedPhotos.length > 0) {
+        try {
+          await servicesService.uploadPhotos(solicitudId, selectedPhotos);
+        } catch (photoError) {
+          console.error('Error al subir fotos:', photoError);
+        }
+      }
+      
+      alert('¡Solicitud de servicio enviada exitosamente!');
+      navigate('/orders');
+    } catch (error) {
+      console.error('Error:', error);
+      const errorDetails = apiHelpers.handleError(error);
+      alert('Error al enviar solicitud: ' + (errorDetails.data?.error || errorDetails.message));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Componente Header
   const Header = () => (
     <div style={{
       display: 'flex',
@@ -331,7 +455,7 @@ const handleSubmitService = async () => {
           transform: 'translateY(0)'
         }}
       >
-        {isSubmitting ? '⏳ Enviando...' : ' Enviar Solicitud'}
+        {isSubmitting ? '⏳ Enviando...' : '🚀 Enviar Solicitud'}
       </button>
     </div>
   );
@@ -540,7 +664,7 @@ const handleSubmitService = async () => {
           letterSpacing: '0.025em'
         }}
       >
-          Siguiente
+        ➡️ Siguiente
       </button>
     </div>
   );
@@ -646,7 +770,7 @@ const handleSubmitService = async () => {
       <Header />
       
       <div style={{ flex: 1, overflowY: 'auto', backgroundColor: currentStep === 1 ? '#fff' : '#fafafa' }}>
-        {currentStep === 1 ? ServiceSelection() : ServiceDetails()}
+        {currentStep === 1 ? <ServiceSelection /> : <ServiceDetails />}
       </div>
 
       {/* Bottom Navigation - solo mostrar en el paso 1 */}
