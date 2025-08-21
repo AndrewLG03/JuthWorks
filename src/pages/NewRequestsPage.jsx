@@ -7,63 +7,73 @@ import { ArrowLeft, User, Calendar, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { adminService, apiHelpers } from '../api';
 
-const fetchNew = async () => {
-  setLoading(true);
-  try {
-    const data = await adminService.getNewRequests();
-    setRequests(data);
-  } catch (error) {
-    console.error(error);
-    const errorDetails = apiHelpers.handleError(error);
-    toast.error(errorDetails.data?.error || 'No se pudieron cargar las solicitudes');
-  } finally {
-    setLoading(false);
-  }
-};
+const NewRequestsPage = () => {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-const handleSendQuote = async (id) => {
-  const precio = prompt('Ingresa el precio estimado para el presupuesto (solo números):');
-  if (!precio || isNaN(parseFloat(precio))) {
-    if (precio !== null) {
-      toast.warn('Por favor, ingresa un precio válido.');
+  const fetchNew = async () => {
+    setLoading(true);
+    try {
+      const data = await adminService.getNewRequests();
+      setRequests(data);
+    } catch (error) {
+      console.error(error);
+      const errorDetails = apiHelpers.handleError(error);
+      toast.error(errorDetails.data?.error || 'No se pudieron cargar las solicitudes');
+    } finally {
+      setLoading(false);
     }
-    return;
-  }
-  
-  try {
-    await adminService.sendQuote(id, parseFloat(precio), '');
-    toast.success('Presupuesto enviado exitosamente');
-    fetchNew();
-  } catch (error) {
-    const errorDetails = apiHelpers.handleError(error);
-    toast.error(errorDetails.data?.error || 'Error al enviar el presupuesto');
-  }
-};
+  };
 
-const handleApprove = async (id) => {
-  if (!window.confirm('¿Estás seguro de que deseas aprobar esta solicitud directamente?')) return;
-  
-  try {
-    await adminService.approveRequest(id, 'Aprobado directamente por el administrador.');
-    toast.success('Solicitud aprobada');
-    fetchNew();
-  } catch (error) {
-    const errorDetails = apiHelpers.handleError(error);
-    toast.error(errorDetails.data?.error || 'Error al aprobar la solicitud');
-  }
-};
+  const handleSendQuote = async (id) => {
+    const precio = prompt('Ingresa el precio estimado para el presupuesto (solo números):');
+    if (!precio || isNaN(parseFloat(precio))) {
+      if (precio !== null) {
+        toast.warn('Por favor, ingresa un precio válido.');
+      }
+      return;
+    }
+    
+    try {
+      await adminService.sendQuote(id, parseFloat(precio), '');
+      toast.success('Presupuesto enviado exitosamente');
+      fetchNew();
+    } catch (error) {
+      const errorDetails = apiHelpers.handleError(error);
+      toast.error(errorDetails.data?.error || 'Error al enviar el presupuesto');
+    }
+  };
 
-const handleReject = async (id) => {
-  if (!window.confirm('¿Estás seguro de que deseas rechazar esta solicitud? Esta acción no se puede deshacer.')) return;
-  
-  try {
-    await adminService.rejectRequest(id, 'Rechazado por el administrador.');
-    toast.info('Solicitud rechazada');
+  const handleApprove = async (id) => {
+    if (!window.confirm('¿Estás seguro de que deseas aprobar esta solicitud directamente?')) return;
+    
+    try {
+      await adminService.approveRequest(id, 'Aprobado directamente por el administrador.');
+      toast.success('Solicitud aprobada');
+      fetchNew();
+    } catch (error) {
+      const errorDetails = apiHelpers.handleError(error);
+      toast.error(errorDetails.data?.error || 'Error al aprobar la solicitud');
+    }
+  };
+
+  const handleReject = async (id) => {
+    if (!window.confirm('¿Estás seguro de que deseas rechazar esta solicitud? Esta acción no se puede deshacer.')) return;
+    
+    try {
+      await adminService.rejectRequest(id, 'Rechazado por el administrador.');
+      toast.info('Solicitud rechazada');
+      fetchNew();
+    } catch (error) {
+      const errorDetails = apiHelpers.handleError(error);
+      toast.error(errorDetails.data?.error || 'Error al rechazar la solicitud');
+    }
+  };
+
+  useEffect(() => {
     fetchNew();
-  } catch (error) {
-    const errorDetails = apiHelpers.handleError(error);
-    toast.error(errorDetails.data?.error || 'Error al rechazar la solicitud');
-  }
+  }, []);
 
   // --- Estilos del Componente ---
   const styles = {
@@ -281,4 +291,6 @@ const handleReject = async (id) => {
       <BottomNavigation />
     </div>
   );
-}
+};
+
+export default NewRequestsPage;
