@@ -3,41 +3,79 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, apiHelpers } from '../api';
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validateForm()) return;
+const Register = () => {
+  const navigate = useNavigate();
   
-  setLoading(true);
-  setError('');
-  setPasswordErrors([]);
-  
-  try {
-    const data = await authService.register(formData);
-    console.log('Register response:', data);
-    
-    if (data.needsVerification) {
-      if (data.userId) {
-        navigate(`/verify-email?userId=${data.userId}`);
-      } else {
-        setError('ID de usuario no recibido del servidor para verificación');
-        console.error('Missing userId in response', data);
-      }
-    } else {
-      navigate('/login');
-    }
-  } catch (error) {
-    console.error('Register fetch error:', error);
-    const errorDetails = apiHelpers.handleError(error);
-    
-    if (errorDetails.data?.passwordErrors) {
-      setPasswordErrors(errorDetails.data.passwordErrors);
-    }
-    setError(errorDetails.data?.error || errorDetails.message || 'No se pudo conectar al servidor');
-  } finally {
-    setLoading(false);
-  }
+  // Estados
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    cedula: '',
+    primer_nombre: '',
+    segundo_nombre: '',
+    primer_apellido: '',
+    segundo_apellido: '',
+    email: '',
+    usuario: '',
+    contrasena: '',
+    tipo_usuario: ''
+  });
 
-  // Íconos SVG (sin cambios)
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const validateForm = () => {
+    // Aquí puedes agregar validaciones específicas
+    if (!formData.cedula || !formData.primer_nombre || !formData.primer_apellido || 
+        !formData.email || !formData.usuario || !formData.contrasena || !formData.tipo_usuario) {
+      setError('Todos los campos marcados con * son obligatorios');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    
+    setLoading(true);
+    setError('');
+    setPasswordErrors([]);
+    
+    try {
+      const data = await authService.register(formData);
+      console.log('Register response:', data);
+      
+      if (data.needsVerification) {
+        if (data.userId) {
+          navigate(`/verify-email?userId=${data.userId}`);
+        } else {
+          setError('ID de usuario no recibido del servidor para verificación');
+          console.error('Missing userId in response', data);
+        }
+      } else {
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Register fetch error:', error);
+      const errorDetails = apiHelpers.handleError(error);
+      
+      if (errorDetails.data?.passwordErrors) {
+        setPasswordErrors(errorDetails.data.passwordErrors);
+      }
+      setError(errorDetails.data?.error || errorDetails.message || 'No se pudo conectar al servidor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Íconos SVG
   const EyeIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -66,7 +104,7 @@ const handleSubmit = async (e) => {
     </svg>
   );
 
-  // Estilos (sin cambios)
+  // Estilos
   const styles = {
     container: { minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem', fontFamily: 'system-ui, -apple-system, sans-serif' },
     header: { textAlign: 'center', marginBottom: '2rem' },
